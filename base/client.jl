@@ -257,6 +257,9 @@ function exec_options(opts)
     # remove filename from ARGS
     global PROGRAM_FILE = arg_is_program ? popfirst!(ARGS) : ""
 
+    # start basic interrupt handler
+    start_simple_interrupt_handler(;force=true)
+
     # Load Distributed module only if any of the Distributed options have been specified.
     distributed_mode = (opts.worker == 1) || (opts.nprocs > 0) || (opts.machine_file != C_NULL)
     if distributed_mode
@@ -422,6 +425,7 @@ function run_main_repl(interactive::Bool, quiet::Bool, banner::Symbol, history_f
     # TODO cleanup REPL_MODULE_REF
     if !fallback_repl && interactive && isassigned(REPL_MODULE_REF)
         invokelatest(REPL_MODULE_REF[]) do REPL
+            start_repl_interrupt_handler(;force=true)
             term_env = get(ENV, "TERM", @static Sys.iswindows() ? "" : "dumb")
             term = REPL.Terminals.TTYTerminal(term_env, stdin, stdout, stderr)
             banner == :no || REPL.banner(term, short=banner==:short)
