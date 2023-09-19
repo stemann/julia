@@ -490,6 +490,34 @@ static void jl_try_deliver_sigint(void)
     HANDLE_MACH_ERROR("thread_resume", ret);
 }
 
+static void jl_deliver_handled_sigint(void)
+{
+    jl_ptls_t ptls2 = jl_atomic_load_relaxed(&jl_all_tls_states)[0];
+    mach_port_t thread = pthread_mach_thread_np(ptls2->system_id);
+
+    kern_return_t ret = thread_suspend(thread);
+    HANDLE_MACH_ERROR("thread_suspend", ret);
+    
+    // This aborts `sleep` and other syscalls.
+    // ret = thread_abort_safely(thread);
+    // HANDLE_MACH_ERROR("thread_abort", ret);
+
+    int force = jl_check_force_sigint();
+    if (force || (!ptls2->defer_signal && ptls2->io_wait)) {
+        jl_safepoint_consume_sigint();
+        if (force)
+            jl_safe_printf("WARNING: Force throwing a SIGINT\n");
+        jl_clear_force_sigint();
+        jl_throw_in_thread(ptls2, thread, jl_interrupt_exception);
+    }
+    else {
+        jl_wake_libuv();
+    }
+    
+    ret = thread_resume(thread);
+    HANDLE_MACH_ERROR("thread_resume", ret);
+}
+
 static void JL_NORETURN jl_exit_thread0_cb(int signo)
 {
 CFI_NORETURN

@@ -617,7 +617,6 @@ JL_DLLEXPORT void jl_profile_stop_timer(void)
 #error no profile tools available
 
 #endif
-#endif // HAVE_MACH
 
 static void jl_deliver_handled_sigint(void)
 {
@@ -628,6 +627,8 @@ static void jl_deliver_handled_sigint(void)
     pthread_kill(other->system_id, SIGUSR2);
     jl_wake_thread(0);
 }
+
+#endif // HAVE_MACH
 
 static void allocate_segv_handler(void)
 {
