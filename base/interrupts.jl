@@ -80,10 +80,8 @@ end
 
 function _throwto_interrupt!(task::Task)
     if task.state == :runnable
-        task._isexception = true
-        task.result = InterruptException()
         try
-            schedule(task)
+            schedule(task, InterruptException(); error=true)
         catch
         end
     end
