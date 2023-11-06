@@ -58,6 +58,16 @@ static void jl_try_throw_sigint(void)
     }
 }
 
+static void jl_deliver_handled_sigint(void)
+{
+    jl_ptls_t other = jl_atomic_load_relaxed(&jl_all_tls_states)[0];
+    jl_wake_libuv();
+    jl_atomic_store_release(&other->signal_request, 2);
+    // This also makes sure `sleep` is aborted.
+    // pthread_kill(other->system_id, SIGUSR2); // TODO: Should this not be done if called from sigint_handler ?
+    jl_wake_thread(0);
+}
+
 void __cdecl crt_sig_handler(int sig, int num)
 {
     CONTEXT Context;
@@ -82,7 +92,10 @@ void __cdecl crt_sig_handler(int sig, int num)
         if (!jl_ignore_sigint()) {
             if (exit_on_sigint)
                 jl_exit(130); // 128 + SIGINT
-            jl_try_throw_sigint();
+            if (want_interrupt_handler())
+                jl_deliver_handled_sigint();
+            else // TODO: Not sure about this!
+                jl_try_throw_sigint();
         }
         break;
     default: // SIGSEGV, SIGTERM, SIGILL, SIGABRT
@@ -221,7 +234,9 @@ static BOOL WINAPI sigint_handler(DWORD wsig) //This needs winapi types to guara
     if (!jl_ignore_sigint()) {
         if (exit_on_sigint)
             jl_exit(128 + sig); // 128 + SIGINT
-        if (!want_interrupt_handler())
+        if (want_interrupt_handler())
+            jl_deliver_handled_sigint();
+        else
             jl_try_deliver_sigint();
     }
     return 1;
