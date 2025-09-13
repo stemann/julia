@@ -4301,7 +4301,7 @@ static jl_value_t *jl_validate_cache_file(ios_t *f, jl_array_t *depmods, uint64_
         // skip past the dependency list
         size_t deplen = read_uint64(f);
         ios_skip(f, deplen - sizeof(uint64_t));
-        read_uint64(f); // where is this write coming from?
+        read_uint64(f); // TODO: This read matches the write in https://github.com/JuliaLang/julia/blob/71ab0712e3d316b9ec9437c54369e6b862c5c663/src/staticdata_utils.c#L885
     }
 
     // verify that the system state is valid
